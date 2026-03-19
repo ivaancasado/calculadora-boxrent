@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BoxRent - Calculadora de Espacio Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #10b981; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-slate-100 p-4 md:p-8 font-sans text-slate-900">
+    <div class="max-w-6xl mx-auto bg-white shadow-2xl rounded-3xl overflow-hidden flex flex-col lg:flex-row border border-slate-200">
+        
+        <div class="lg:w-2/3 p-6 md:p-10">
+            <header class="mb-8 border-b pb-4">
+                <h1 class="text-4xl font-black text-emerald-800 italic uppercase tracking-tighter">BoxRent</h1>
+                <p class="text-emerald-600 font-bold uppercase text-[10px] tracking-[0.3em]">Cálculo y Optimización de Almacenaje</p>
+            </header>
+
+            <div id="items-list" class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                </div>
+        </div>
+
+        <div class="lg:w-1/3 bg-emerald-900 p-8 text-white flex flex-col justify-between border-l-4 border-amber-400">
+            <div>
+                <div class="text-center mb-8">
+                    <span class="text-amber-400 text-[10px] font-black uppercase tracking-widest">Metros Cuadrados Estimados</span>
+                    <div class="flex items-center justify-center gap-1 mt-1">
+                        <span id="total-area" class="text-8xl font-black text-white leading-none">0</span>
+                        <span class="text-2xl font-bold text-amber-400">m²</span>
+                    </div>
+                </div>
+
+                <div id="opt-message" class="bg-amber-400/20 border border-amber-400/40 p-5 rounded-2xl mb-8 hidden transition-all duration-300">
+                    <p id="opt-title" class="text-amber-400 text-xs font-black uppercase mb-1">💡 Optimización BoxRent</p>
+                    <p id="opt-text" class="text-[11px] text-emerald-50 leading-relaxed font-medium"></p>
+                </div>
+
+                <div class="space-y-3">
+                    <p class="text-[10px] text-center text-emerald-300 font-bold uppercase mb-2">Presupuesto a administracion@boxrent.es</p>
+                    <input type="email" id="client-email" placeholder="Tu Email" class="w-full bg-emerald-950 border border-emerald-800 rounded-xl p-4 text-sm outline-none focus:ring-2 focus:ring-amber-400 text-white transition-all">
+                    <input type="tel" id="client-phone" placeholder="Tu Teléfono" class="w-full bg-emerald-950 border border-emerald-800 rounded-xl p-4 text-sm outline-none focus:ring-2 focus:ring-amber-400 text-white transition-all">
+                    <button onclick="sendRequest()" id="send-btn" class="w-full bg-amber-400 hover:bg-amber-500 text-emerald-950 font-black py-5 rounded-2xl transition-all shadow-xl uppercase tracking-tighter">
+                        Solicitar Información
+                    </button>
+                    <p id="feedback" class="text-[11px] text-center text-emerald-400 font-bold mt-2 px-2"></p>
+                </div>
+            </div>
+            <button onclick="reset()" class="mt-8 text-emerald-500 hover:text-white text-[10px] font-bold uppercase tracking-widest transition-colors text-center w-full">Reiniciar Inventario</button>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURACIÓN EMAILJS INTEGRADA
+        const PUBLIC_KEY = "Ejuab26E2C5PrK-H1";
+        const SERVICE_ID = "service_xzk2sv1";
+        const TEMPLATE_ID = "template_3twld4c";
+
+        emailjs.init(PUBLIC_KEY);
+
+        const inventory = [
+            { id: 'shelf', name: "Estantería BoxRent", area: 0.8, icon: "🪜", type: 'optimizer' },
+            { id: 'box', name: "Cajas Estándar", area: 0.3, icon: "📦", type: 'stackable' },
+            { id: 'sofa', name: "Sofás / Butacas", area: 3.5, icon: "🛋️", type: 'floor' },
+            { id: 'bed', name: "Camas / Colchones", area: 3.0, icon: "🛏️", type: 'floor' },
+            { id: 'appliance', name: "Electrodomésticos", area: 1.2, icon: "🔌", type: 'floor' },
+            { id: 'table', name: "Mesas / Escritorios", area: 2.0, icon: "🖥️", type: 'floor' },
+            { id: 'garden', name: "Muebles de Jardín", area: 2.5, icon: "🌳", type: 'floor' },
+            { id: 'tools', name: "Herramientas / Bricolaje", area: 0.4, icon: "🛠️", type: 'stackable' },
+            { id: 'office', name: "Material Oficina / Archivo", area: 0.3, icon: "🗄️", type: 'stackable' },
+            { id: 'bike', name: "Bicis / Patinetes", area: 1.0, icon: "🚲", type: 'floor' }
+        ];
+
+        let counts = {};
+        inventory.forEach(item => counts[item.id] = 0);
+
+        function render() {
+            const list = document.getElementById('items-list');
+            list.innerHTML = inventory.map(item => `
+                <div class="flex items-center justify-between p-4 bg-white border-2 ${counts[item.id] > 0 ? 'border-amber-400 bg-amber-50/20' : 'border-slate-100'} rounded-2xl transition-all shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">${item.icon}</span>
+                        <p class="font-bold text-slate-700 text-[11px] uppercase tracking-tight">${item.name}</p>
+                    </div>
+                    <div class="flex items-center gap-2 bg-slate-100 rounded-xl p-1 border">
+                        <button onclick="step('${item.id}', -1)" class="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-400 hover:text-red-500 font-bold">-</button>
+                        <input type="number" value="${counts[item.id]}" oninput="manualInput('${item.id}', this.value)" class="w-10 text-center font-black text-emerald-800 bg-transparent outline-none">
+                        <button onclick="step('${item.id}', 1)" class="w-8 h-8 rounded-lg bg-emerald-600 text-white shadow-sm flex items-center justify-center hover:bg-emerald-700 font-bold">+</button>
+                    </div>
+                </div>
+            `).join('');
+            calculate();
+        }
+
+        function step(id, delta) { counts[id] = Math.max(0, counts[id] + delta); render(); }
+        function manualInput(id, val) { counts[id] = Math.max(0, parseInt(val) || 0); calculate(); }
+
+        function calculate() {
+            let floorArea = 0, stackableArea = 0;
+            let shelfQty = counts['shelf'];
+            let hasStackable = false;
+
+            inventory.forEach(item => {
+                const count = counts[item.id];
+                if (item.type === 'floor' || item.type === 'optimizer') floorArea += item.area * count;
+                else if (item.type === 'stackable') {
+                    stackableArea += item.area * count;
+                    if (count > 0) hasStackable = true;
+                }
+            });
+
+            const shelfCapacity = shelfQty * 2.5;
+            const optimizedStackable = Math.max(0, stackableArea - shelfCapacity);
+            const total = Math.ceil(floorArea + optimizedStackable);
+            document.getElementById('total-area').innerText = total > 80 ? "80+" : total;
+
+            const msgBox = document.getElementById('opt-message');
+            const msgTitle = document.getElementById('opt-title');
+            const msgText = document.getElementById('opt-text');
+
+            if (hasStackable || shelfQty > 0) {
+                msgBox.classList.remove('hidden');
+                if (shelfQty > 0) {
+                    msgTitle.innerText = "✅ Optimización Activa";
+                    msgText.innerText = "Las estanterías BoxRent están aprovechando la altura de 2.5m, reduciendo los m² de suelo necesarios.";
+                } else {
+                    msgTitle.innerText = "💡 Consejo BoxRent";
+                    msgText.innerText = "Has añadido objetos apilables. Incluye estanterías para optimizar el espacio vertical y pagar menos m².";
+                }
+            } else { msgBox.classList.add('hidden'); }
+        }
+
+        function sendRequest() {
+            const email = document.getElementById('client-email').value;
+            const phone = document.getElementById('client-phone').value;
+            const btn = document.getElementById('send-btn');
+            const feedback = document.getElementById('feedback');
+            
+            if(!email || !phone) { alert("Por favor, rellena tus datos de contacto."); return; }
+
+            btn.disabled = true;
+            btn.innerText = "ENVIANDO...";
+
+            const summary = inventory.filter(i => counts[i.id] > 0).map(i => `${i.name}: ${counts[i.id]}`).join(', ');
+
+            const templateParams = {
+                client_email: email,
+                client_phone: phone,
+                total_m2: document.getElementById('total-area').innerText,
+                inventory_list: summary || "Sin objetos seleccionados"
+            };
+
+            emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams)
+                .then(() => {
+                    feedback.innerText = "✅ ¡Solicitud enviada! Revisaremos tu inventario pronto.";
+                    btn.innerText = "ENVIADO";
+                    btn.classList.replace('bg-amber-400', 'bg-emerald-700');
+                }, (err) => {
+                    console.error("Error:", err);
+                    alert("Error al enviar a IONOS. Verifica tu conexión.");
+                    btn.disabled = false;
+                    btn.innerText = "REINTENTAR";
+                });
+        }
+
+        function reset() { Object.keys(counts).forEach(k => counts[k] = 0); render(); }
+        render();
+    </script>
+</body>
+</html>
